@@ -176,7 +176,7 @@ import base64
 #     messages = [
 #         {
 #             "role": "user",
-#             "content": "Расскажи шутку про обезьянку и французский Mistral Api",
+#             "content": "Кто такой Ленин?",
 #         },
 #     ]
 # )
