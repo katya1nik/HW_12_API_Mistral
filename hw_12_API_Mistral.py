@@ -34,6 +34,8 @@ links:
 
 ### Описание классов и их функциональности
 
+
+
 1. **TextRequest**  
    Класс отвечает за отправку текстовых запросов к API Mistral.
 
@@ -161,12 +163,6 @@ links:
 >- **История запросов:** Опционально. Реализован функционал сохранения и просмотра истории запросов и ответов.
 """
 
-from settings import MISTRAL_API_KEY
-
-from mistralai import Mistral
-import base64
-
-
 # # model = "mistral-large-latest"
 
 # # client = Mistral(api_key=MISTRAL_API_KEY)
@@ -236,3 +232,43 @@ import base64
 
 # # Print the content of the response
 # print(chat_response.choices[0].message.content)
+
+from settings import MISTRAL_API_KEY
+from typing import List, Dict, Tuple, Optional
+from mistralai import Mistral
+import base64
+class TextRequest:
+    """
+    Класс для отправки текстовых запросов к API Mistral."
+    """
+    def __init__(self, api_key: str):
+       self.client = Mistral(api_key=api_key)
+
+    def send(self, text:str, model: str) -> dict:
+        """Отправляет текстовый запрос.
+        """
+        try:
+            responce = self.client.chat.complete(
+                model = model,
+                messages = [
+                    {
+                        "role": "user",
+                        "content": text,
+                    },
+                ]
+            )
+            
+            return {"response": responce.choices[0].message.content}
+        except Exception as e:
+            return {"error": str(e)}
+        
+
+text_request = TextRequest(MISTRAL_API_KEY)
+result = text_request.send("Кто такой Ленин?", "mistral-large-latest")
+print("Вопрос: Кто такой Ленин?")
+print("Ответ:", result["response"])
+
+
+
+
+
