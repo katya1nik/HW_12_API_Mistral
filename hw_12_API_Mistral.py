@@ -163,111 +163,93 @@ links:
 >- **История запросов:** Опционально. Реализован функционал сохранения и просмотра истории запросов и ответов.
 """
 
-# # model = "mistral-large-latest"
-
-# # client = Mistral(api_key=MISTRAL_API_KEY)
-
-# # chat_response = client.chat.complete(
-# #     model = model,
-# #     messages = [
-# #         {
-# #             "role": "user",
-# #             "content": "Кто такой Ленин?",
-# #         },
-# #     ]
-# # )
-
-# # print(chat_response.choices[0].message.content)
-
-
-# def encode_image(image_path):
-#     """Encode the image to base64."""
-#     try:
-#         with open(image_path, "rb") as image_file:
-#             return base64.b64encode(image_file.read()).decode('utf-8')
-#     except FileNotFoundError:
-#         print(f"Error: The file {image_path} was not found.")
-#         return None
-#     except Exception as e:  # Added general exception handling
-#         print(f"Error: {e}")
-#         return None
-
-# # Path to your image
-# image_path = r"C:\Users\User\Desktop\photo_2024-10-06_12-03-50.jpg"
-
-# # Getting the base64 string
-# base64_image = encode_image(image_path)
-
-# # Retrieve the API key from environment variables
-
-
-# # Specify model
-# model = "pixtral-12b-2409"
-
-# # Initialize the Mistral client
-# client = Mistral(api_key=MISTRAL_API_KEY)
-
-# # Define the messages for the chat
-# messages = [
-#     {
-#         "role": "user",
-#         "content": [
-#             {
-#                 "type": "text",
-#                 "text": "Детально опиши, что изображено на картинке.",
-#             },
-#             {
-#                 "type": "image_url",
-#                 "image_url": f"data:image/jpeg;base64,{base64_image}" 
-#             }
-#         ]
-#     }
-# ]
-
-# # Get the chat response
-# chat_response = client.chat.complete(
-#     model=model,
-#     messages=messages
-# )
-
-# # Print the content of the response
-# print(chat_response.choices[0].message.content)
 
 from settings import MISTRAL_API_KEY
 from typing import List, Dict, Tuple, Optional
 from mistralai import Mistral
 import base64
-class TextRequest:
+# class TextRequest:
+#     """
+#     Класс для отправки текстовых запросов к API Mistral."
+#     """
+#     def __init__(self, api_key: str):
+#        self.client = Mistral(api_key=api_key)
+
+#     def send(self, text:str, model: str) -> dict:
+#         """Отправляет текстовый запрос.
+#         """
+#         try:
+#             responce = self.client.chat.complete(
+#                 model = model,
+#                 messages = [
+#                     {
+#                         "role": "user",
+#                         "content": text,
+#                     },
+#                 ]
+#             )
+            
+#             return {"response": responce.choices[0].message.content}
+#         except Exception as e:
+#             return {"error": str(e)}
+        
+# text_request = TextRequest(MISTRAL_API_KEY)
+# result = text_request.send("Кто такой Ленин?", "mistral-large-latest")
+# print("Вопрос: Кто такой Ленин?")
+# print("Ответ:", result["response"])
+        
+class ImageRequest:
     """
-    Класс для отправки текстовых запросов к API Mistral."
+    Класс для отправки запросов с изображением к API Mistral.
     """
     def __init__(self, api_key: str):
-       self.client = Mistral(api_key=api_key)
+        self.client = Mistral(api_key=api_key)
 
-    def send(self, text:str, model: str) -> dict:
-        """Отправляет текстовый запрос.
-        """
+    def encode_image(self, image_path: str) -> Optional[str]:
+        """Кодирует изображение в base64."""
         try:
-            responce = self.client.chat.complete(
-                model = model,
-                messages = [
+            with open(image_path, "rb") as image_file:
+                return base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+        
+    def send(self, text: str,  image_path: str) -> dict:
+        """Отправляет запрос с изображением."""
+        base64_image = self.encode_image(image_path)
+        if not base64_image:
+            return {"error": "Failed to encode image."}
+        
+        try:
+            message = [{
+                "role": "user",
+                "content": [
                     {
-                        "role": "user",
-                        "content": text,
+                        "type": "text",
+                        "text": text,
                     },
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/jpeg;base64,{base64_image}"
+                    }
                 ]
+            }]
+        
+
+            response = self.client.chat.complete(
+                model="pixtral-12b-2409",
+                messages=message
             )
-            
-            return {"response": responce.choices[0].message.content}
+            return {"response": response.choices[0].message.content}
         except Exception as e:
             return {"error": str(e)}
         
+image_request = ImageRequest(MISTRAL_API_KEY)
+image_path = r"C:\Users\User\Desktop\20200224_101333.jpg"
 
-text_request = TextRequest(MISTRAL_API_KEY)
-result = text_request.send("Кто такой Ленин?", "mistral-large-latest")
-print("Вопрос: Кто такой Ленин?")
-print("Ответ:", result["response"])
+result = image_request.send("Детально опиши, что изображено на картинке.", image_path=image_path)
 
+print(result["response"])
 
 
 
