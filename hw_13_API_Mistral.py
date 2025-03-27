@@ -127,6 +127,7 @@ from mistralai import Mistral
 import base64
 from abc import ABC, abstractmethod
 
+
 class RequestStrategy(ABC):
     '''
     Абстрактный класс для стратегий запросов.
@@ -158,7 +159,7 @@ class RequestStrategy(ABC):
         pass
 
             
-class TextRequest:
+class TextRequestStrategy(ABC):
     """
     Класс для отправки текстовых запросов к API Mistral.
     Args:
