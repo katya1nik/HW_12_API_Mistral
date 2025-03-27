@@ -1,1 +1,1 @@
-MISTRAL_API_KEY = 'вставьте свой ключ'
+MISTRAL_API_KEY = "ваш_реальный_API_ключ"
