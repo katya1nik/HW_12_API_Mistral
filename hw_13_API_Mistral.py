@@ -194,13 +194,13 @@ class TextRequestStrategy(RequestStrategy):
             return {"error": str(e)}
         
         
-class ImageRequest:
+class ImageRequest (RequestStrategy):
     """
-    Класс для отправки запросов с изображением к API Mistral.
+    Конкретная стратегия для запросов с изображением.
+    Args:
+        api_key: Ключ API Mistral для аутентификации запросов.
     """
-    def __init__(self, api_key: str):
-        self.client = Mistral(api_key=api_key)
-
+    
     def encode_image(self, image_path: str) -> Optional[str]:
         """Кодирует изображение в base64.
         Args:
@@ -215,16 +215,21 @@ class ImageRequest:
             print(f"Error: {e}")
             return None
         
-    def send(self, text: str, image_path: str, model: str) -> dict:
-        """Отправляет запрос с изображением
+    def execute(self, text: str, model: str, history: List[Tuple[str, Dict[str, Any]]] = None, image_path: str = None) -> Dict[str, Any]:
+
+        """
+        Реализует отправку запроса с изображением.
         Args:
             text: Текст запроса
-            image_path: Путь к изображению
             model: Название модели для обработки запроса
-        
+            history: История предыдущих запросов и ответов (опционально)
+            image_path: Путь к изображению 
+
         Returns:
-        dict: Словарь с ответом или ошибкой
+            dict: Словарь с ответом или информацией об ошибке
+        
         """
+        
         if not image_path:
             return {"error": "Путь к изображению не указан"}
        
