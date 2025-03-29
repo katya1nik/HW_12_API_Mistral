@@ -194,7 +194,7 @@ class TextRequestStrategy(RequestStrategy):
             return {"error": str(e)}
         
         
-class ImageRequest (RequestStrategy):
+class ImageRequestStrategy(RequestStrategy):
     """
     Конкретная стратегия для запросов с изображением.
     Args:
@@ -216,6 +216,7 @@ class ImageRequest (RequestStrategy):
             return None
         
     def execute(self, text: str, model: str, history: List[Tuple[str, Dict[str, Any]]] = None, image_path: str = None) -> Dict[str, Any]:
+        print("Начало метода execute в ImageRequestStrategy")
 
         """
         Реализует отправку запроса с изображением.
@@ -231,14 +232,17 @@ class ImageRequest (RequestStrategy):
         """
         
         if not image_path:
+            print("Путь к изображению не указан")
             return {"error": "Путь к изображению не указан"}
        
         
         base64_image = self.encode_image(image_path)
         if not base64_image:
+            print("Не удалось закодировать изображение")
             return {"error": "Не удалось закодировать изображение"}
         
         try:
+            print("Формирование сообщения")
             messages = [{
                 "role": "user",
                 "content": [
@@ -246,11 +250,12 @@ class ImageRequest (RequestStrategy):
                     {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_image}"}
                 ]
             }]
-
+            print(f"Отправка запроса к модели: {model}")
             response = self.client.chat.complete(
                 model=model,  # Используем модель для работы с изображениями
                 messages=messages
             )
+            print("Ответ получен")
             return {"response": response.choices[0].message.content}
         except Exception as e:
             print(f"Ошибка при обработке изображения: {e}")
@@ -262,50 +267,49 @@ class ChatFacade:
     Инициализация фасада для работы с API Mistral.
     """
     def __init__(self, api_key: str) -> None:
-        self.text_request = TextRequest(api_key)
-        self.image_request = ImageRequest(api_key)
+        self.api_key = api_key
+        self.text_strategy = TextRequestStrategy(api_key)
+        self.image_strategy = ImageRequestStrategy(api_key)
+        self.current_strategy = self.text_strategy
         self.history: List[Tuple[str, dict]] = []
         self.text_models = ["mistral-large-latest"]
-        self.image_model = ["pixtral-12b-2409", "pixtral-12b-2409-v2"]
+        self.image_models = ["pixtral-12b-2409", "pixtral-12b-2409-v2"]
 
-    def select_mode(self) ->int:
-        """Выбор режима работы с API.
-        Если доступна только одна модель для выбранного режима, она выбирается автоматически.
-        Если доступно несколько моделей, пользователю предлагается выбрать одну из них.
-        
+    def change_strategy(self, strategy_type: str) -> None:
+        """
+        Изменяет стратегию обработки запроса.
         Args:
-            mode: Режим работы (1 - текстовый, 2 - с изображением)
+            strategy: Новая стратегия для обработки запросов
+        Raises:
+            ValueError: Если стратегия не является экземпляром класса RequestStrategy
+        """
+        if strategy_type.lower() == "text":
+            self.current_strategy = self.text_strategy
+            print("Стратегия изменена на текстовый запрос")
+
+        elif strategy_type.lower() == "image":
+            self.current_strategy = self.image_strategy
+            print("Стратегия изменена на запрос с изображением")
+        else:
+            raise ValueError("Неверный тип стратегии")
+
+    def select_model(self, mode: int = None) -> str:
+        """Выбор режима работы с API.
         
         Returns:
             str: Название выбранной модели
         """
-        print("Выберите режим:")
-        print("1. Текстовый запрос")
-        print("2. Запрос с изображением")
+        if mode is None:
+            models = self.text_models if self.current_strategy == self.text_strategy else self.image_models
 
-        while True:
-            print ("Ожидание ввода...")
-            user_input = input("Введите номер режима: ")
-            print (f'Вы ввели: {user_input}')
-
-            if user_input == "1":
-                return 1
-            elif user_input == "2":
-                return 2
-            else:
-                print("Некорректный ввод. Пожалуйста, введите 1 или 2.")
-            
-
-    def select_model(self, mode: int) -> str:
-        """Выбор модели для запроса."""
-        models = self.text_models if mode == 1 else self.image_model
-
+        else:
+            models = self.text_models if mode == 1 else self.image_models
         if len(models) == 1:
             print(f"Выбранная модель: {models[0]}")
             return models[0]
         
-        print("Доступные модели:")
-        for i, model in enumerate(models, 1):
+        print ("Доступные модели:")
+        for i, model in enumerate(models,1):
             print(f"{i}. {model}")
         
         while True:
@@ -321,6 +325,7 @@ class ChatFacade:
                     print("Некорректный ввод. Пожалуйста, введите номер модели из списка.")
 
     def load_image(self, image_path: str) -> str:
+        print("Начало метода load_image")
         """Загружает изображение и преобразует его в Base64.
     
         Args:
@@ -337,19 +342,27 @@ class ChatFacade:
         # Пробуем открыть файл для проверки его существования
             with open(image_path, "rb") as _:
                 pass
+            print(f"Текущая стратегия: {self.current_strategy}")
+            print(f"Стратегия изображений: {self.image_strategy}")
 
-            base64_image = self.image_request.encode_image(image_path)
-            if base64_image is None:
-                raise Exception("Не удалось преобразовать изображение в Base64")
-
+            if self.current_strategy == self.image_strategy:
+                print("Проверка изображения")
+                base64_image = self.image_strategy.encode_image(image_path)
+                print(f"base64_image: {base64_image is not None}")
+                if base64_image is None:
+                    raise Exception("Не удалось преобразовать изображение в Base64")
+            print("Возвращаем путь к изображению")
             return image_path
         except FileNotFoundError:
+            print("Файл не найден")
             raise FileNotFoundError(f"Файл не найден: {image_path}")
         except Exception as e:
+            print(f"Ошибка в load_image: {e}")
             raise Exception(f"Ошибка при загрузке изображения: {str(e)}")
     
 
     def ask_question(self, text: str, model: str, image_path: str = None) -> dict:
+        print("Начало метода ask_question")
         """Отправка запроса и сохранение истории.
         В зависимости от выбранной модели и наличия пути к изображению,
         отправляет либо текстовый запрос, либо запрос с изображением.
@@ -364,15 +377,12 @@ class ChatFacade:
                 или с информацией об ошибке
         """
         try:
-            if model in self.image_model and image_path is not None:
-              
-                response = self.image_request.send(text, image_path, model)
-                print("Запрос отправлен в режиме изображения")
-            else:
-                print("Отправка текстового запроса...")
-                response = self.text_request.send(text, model)
-                print("Запрос отправлен в текстовом режиме")
+            print(f"Текущая стратегия: {self.current_strategy}")
+            print(f"Модель: {model}")
+            print(f"Путь к изображению: {image_path}")
 
+            response = self.current_strategy.execute(text, model, self.history, image_path)
+            print(f"Ответ получен: {response}")
             if isinstance(response, dict) and "response" in response:
                 self.history.append((text, response))
                 self.save_history_to_file()
@@ -381,6 +391,7 @@ class ChatFacade:
                 return {"response": str(response)}
                 
         except Exception as e:
+            print(f"Ошибка в ask_question: {e}")
             error_response = {"error": f"Ошибка при обработке запроса: {str(e)}"}
             self.history.append((text, error_response))
             self.save_history_to_file() 
@@ -394,6 +405,7 @@ class ChatFacade:
     def clear_history(self) -> None:
         """Очистка истории запросов и ответов."""
         self.history.clear()
+        print("История очищена.")
 
     def save_history_to_file(self, filename="history.txt"):
         with open(filename, "w", encoding="utf-8") as f:
@@ -406,48 +418,64 @@ def main():
     chat = ChatFacade(MISTRAL_API_KEY)
 
     while True:
-        mode = chat.select_mode()
-        model = chat.select_model(mode)
-        image_path = None
+        print("\nВыберите режим:")
+        print("1. Текстовый запрос")
+        print("2. Запрос с изображением")
+        print("3. Показать историю")
+        print("4. Очистить историю")
+        print("5. Выйти")
 
-        if mode == 2:
-            text = "Опиши детально, что изображено на картинке"
-            print("\nПример пути: C:/Users/Pictures/image.jpg")
-            image_path = input("Введите полный путь к изображению: ")
-            print(f"Путь получен: {image_path}")
+        try:
+            choice = int(input("Введите номер режима: "))
+            if choice == 1:
+                chat.change_strategy('text')
+                model = chat.select_model()
+                text = input("Введите текст запроса: ")
+                result = chat.ask_question(text, model)
+                print(f"Ответ: {result.get('response', result.get('error'))}")
+            elif choice == 2:
+                chat.change_strategy('image')
+                model = chat.select_model()
+                text = input("Введите текст запроса: ")
+                if not text:
+                    text = "Опиши детально это изображение"
+                print('\nПример пути: C:/Users/Pictures/image.jpg')
+                image_path = input("Введите путь к изображению: ")
 
-            try:
-                image_path = chat.load_image(image_path)
-                print(f"Загружено изображение: {image_path}")
-            except Exception as e:
-                print(f"Ошибка при загрузке изображения: {e}")
-                continue
-        else:
-            text = input("Введите ваш вопрос: ")
+                try:
+                    print("Перед вызовом load_image")
+                    image_path = chat.load_image(image_path)
+                    print("После вызова load_image")
+                    print("Перед вызовом ask_question")
+                    result = chat.ask_question(text, model, image_path)
+                    print("\nОтвет:", result.get("response", result.get("error")))
+                except Exception as e:
+                    print(f"Ошибка: {e}")
+            elif choice == 3:
+                history = chat.get_history()
+                if not history:
+                    print("История пуста.")
+                else:
+                    print("История запросов и ответов:")
+                    for i, (question, response) in enumerate(history, 1):
+                        print(f"\n{i}. Запрос: {question}")
+                        print(f"   Ответ: {response.get('responce', response.get('error', 'Ошибка'))}")
 
-        result = chat.ask_question(text, model, image_path)
-        print("\nОтвет:", result.get("response", result.get("error")))
+            elif choice == 4:
+                chat.clear_history()
+                print("История очищена.")
 
-        choice = input("\nВыберите действие (c - продолжить, h - показать историю, q - выйти): ").lower()
-        
-        if choice == 'h':
-            # Показать историю
-            print("\nИстория запросов и ответов:")
-            for question, response in chat.get_history():
-                print(f"\nЗапрос: {question}")
-                print(f"Ответ: {response.get('response', response.get('error', 'Ошибка'))}")
-            
-            # После показа истории спрашиваем, хочет ли пользователь продолжить
-            if input("\nХотите продолжить? (y/n): ").lower() != "y":
+            elif choice == 5:
+                print("Выход из программы.")
                 break
-        elif choice == 'q':
-            break
+            else:
+                print("Неверный выбор. Пожалуйста, выберите снова.")
 
-
+        except ValueError:
+            print("Неверный выбор. Пожалуйста, введите число.")
+             
 if __name__ == "__main__":
     main()
 
-__all__ = ['TextRequest', 'ImageRequest', 'ChatFaсade']
-
-
-
+__all__ = ['RequestStrategy', 'TextRequestStrategy', 'ImageRequestStrategy', 'ChatFacade']
+        
