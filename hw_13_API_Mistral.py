@@ -159,23 +159,25 @@ class RequestStrategy(ABC):
         pass
 
             
-class TextRequestStrategy(ABC):
+class TextRequestStrategy(RequestStrategy):
     """
-    Класс для отправки текстовых запросов к API Mistral.
+    Конкретная стратегия для текстовых запросов.
     Args:
-        text: Текст запроса, который будет отправлен модели
-        model: Название модели Mistral для обработки запроса
-    
-    Returns:
-        dict: Словарь с ключом 'response', содержащим ответ модели,
-              или с ключом 'error', содержащим текст ошибки
+        api_key: Ключ API Mistral для аутентификации запросов
     """
-    def __init__(self, api_key: str):
-       self.client = Mistral(api_key=api_key)
-
-    def send(self, text:str, model: str) -> dict:
-        """Отправляет текстовый запрос.
+    def execute(self, text: str, model: str, history: List[Tuple[str, Dict[str, Any]]] = None, image_path: str = None) -> Dict[str, Any]:
         """
+        Реализует отправку текстового запроса.
+        Args:
+            text: Текст запроса
+            model: Название модели для обработки запроса
+            history: История предыдущих запросов и ответов (опционально)
+            image_path: Путь к изображению (опционально)
+
+        Returns:
+            dict: Словарь с ответом или информацией об ошибке
+        """
+
         try:
             response = self.client.chat.complete(
                 model = model,
